@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+  background: #e6eae7;
+  color: #101714;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* The phone-frame is fixed 390x844; we never want the page itself to
+ * scroll, only the inner card stack. */
+body {
+  overflow: hidden;
+}
+
+/* Make the phone feel like a real device: subtle inner shadow on the
+ * rounded shell. */
+.sahakar-shell {
+  background:
+    radial-gradient(120% 60% at 50% 0%, #f3f5f4 0%, #e6eae7 70%, #dde2dd 100%);
+}

@@ -1,0 +1,151 @@
+// SahakarSeva data model
+// SQLite for zero-config demo. All times are ISO strings in the DB layer
+// but we surface them as Date objects in app code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- People ----------
+
+model Customer {
+  id          String    @id @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  avatarHue   Int       @default(180) // used by the procedural avatar
+  verified    Boolean   @default(true)
+  addresses   String // JSON array of {label, line, city}
+  createdAt   DateTime  @default(now())
+
+  bookings    Booking[]
+  requests    OpenRequest[]
+}
+
+model Worker {
+  id            String    @id @default(cuid())
+  name          String
+  phone         String
+  avatarHue     Int       @default(150)
+  skill         String // Electrician, Plumber, etc.
+  locality      String // Indiranagar, Koramangala, ...
+  rating        Float     @default(4.6)
+  jobsDone      Int       @default(0)
+  standardRate  Int // in INR per visit
+  cooperative   String // name of the primary society
+  cooperativeId String
+  bio           String
+  joinedAt      DateTime  @default(now())
+
+  // Verification — all default true to match the prototype demo
+  aadhaarOk        Boolean @default(true)
+  digilockerOk     Boolean @default(true)
+  policeOk         Boolean @default(true)
+  coopSignoffOk    Boolean @default(true)
+
+  // Welfare
+  esicOk      Boolean @default(true)
+  pmjayOk     Boolean @default(true)
+  pensionOk   Boolean @default(true)
+  emergencyOk Boolean @default(true)
+
+  // Spotlight
+  spotlightPoints Int @default(12) // current monthly pool
+  spotlightBoosts Int @default(0)  // boosts used this month
+
+  // Operational
+  availabilityFrom String @default("08:00")
+  availabilityTo   String @default("20:00")
+  serviceRadiusKm  Int    @default(6)
+  voiceLanguage    String @default("Kannada")
+
+  bookings   Booking[]
+  requests   OpenRequest[] @relation("WorkerRequests")
+  earnings   Earning[]
+  spotlight  SpotlightEvent[]
+}
+
+// ---------- Marketplace ----------
+
+model Booking {
+  id         String   @id @default(cuid())
+  customerId String
+  workerId   String
+  skill      String
+  locality   String
+  amount     Int      // in INR — the customer-facing price
+  offer      Int      // the customer's offer before floor was enforced
+  notes      String?
+  status     String   @default("BOOKED") // BOOKED | ACCEPTED | IN_PROGRESS | COMPLETED | CANCELLED
+  etaMinutes Int      @default(25)
+  createdAt  DateTime @default(now())
+  acceptedAt DateTime?
+  startedAt  DateTime?
+  completedAt DateTime?
+  // Safety
+  lastCheckInAt DateTime?
+  // Payment
+  inEscrow  Boolean @default(true)
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  worker   Worker   @relation(fields: [workerId], references: [id])
+  rating   Rating?
+}
+
+model OpenRequest {
+  id          String   @id @default(cuid())
+  customerId  String
+  workerId    String?  // assigned when accepted; null while pending
+  skill       String
+  locality    String
+  budget      Int
+  window      String   // "Tomorrow 10–12" etc.
+  notes       String?
+  status      String   @default("PENDING") // PENDING | ACCEPTED | DECLINED | EXPIRED
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  worker   Worker?  @relation("WorkerRequests", fields: [workerId], references: [id])
+}
+
+// ---------- Money ----------
+
+model Earning {
+  id         String   @id @default(cuid())
+  workerId   String
+  amount     Int      // net amount that went to the worker (95% of gross)
+  gross      Int      // pre-split
+  status     String   @default("IN_ESCROW") // IN_ESCROW | PAID_OUT
+  bookingId  String?
+  createdAt  DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id])
+}
+
+// ---------- Reputation ----------
+
+model Rating {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  stars      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+model SpotlightEvent {
+  id        String   @id @default(cuid())
+  workerId  String
+  delta     Int      // +N earn, -N spend
+  reason    String   // REFERRAL | BOOST_USED | MILESTONE
+  createdAt DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id])
+}
